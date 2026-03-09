@@ -57,6 +57,9 @@ class Camera:
 
         self.collect_head_camera = kwags["camera"].get("collect_head_camera", True)
         self.collect_wrist_camera = kwags["camera"].get("collect_wrist_camera", True)
+        self.collect_left_wrist_camera = kwags["camera"].get("collect_left_wrist_camera", self.collect_wrist_camera)
+        self.collect_right_wrist_camera = kwags["camera"].get("collect_right_wrist_camera", self.collect_wrist_camera)
+        self.observer_camera_cfg = kwags.get("observer_camera", None)
 
         # embodiment = kwags.get('embodiment')
         # embodiment_config_path = os.path.join(CONFIGS_PATH, '_embodiment_config.yml')
@@ -130,25 +133,26 @@ class Camera:
             return camera, camera_config
 
         # ================================= wrist camera =================================
-        if self.collect_wrist_camera:
+        if self.collect_left_wrist_camera or self.collect_right_wrist_camera:
             wrist_camera_config = camera_args[self.wrist_camera_type]
-            self.left_camera = scene.add_camera(
-                name="left_camera",
-                width=wrist_camera_config["w"],
-                height=wrist_camera_config["h"],
-                fovy=np.deg2rad(wrist_camera_config["fovy"]),
-                near=near,
-                far=far,
-            )
-
-            self.right_camera = scene.add_camera(
-                name="right_camera",
-                width=wrist_camera_config["w"],
-                height=wrist_camera_config["h"],
-                fovy=np.deg2rad(wrist_camera_config["fovy"]),
-                near=near,
-                far=far,
-            )
+            if self.collect_left_wrist_camera:
+                self.left_camera = scene.add_camera(
+                    name="left_camera",
+                    width=wrist_camera_config["w"],
+                    height=wrist_camera_config["h"],
+                    fovy=np.deg2rad(wrist_camera_config["fovy"]),
+                    near=near,
+                    far=far,
+                )
+            if self.collect_right_wrist_camera:
+                self.right_camera = scene.add_camera(
+                    name="right_camera",
+                    width=wrist_camera_config["w"],
+                    height=wrist_camera_config["h"],
+                    fovy=np.deg2rad(wrist_camera_config["fovy"]),
+                    near=near,
+                    far=far,
+                )
 
         # ================================= sensor camera =================================
         # sensor_config = StereoDepthSensorConfig()
@@ -216,19 +220,27 @@ class Camera:
                 # self.static_sensor_camera_list.append(sensor_camera)
                 self.static_camera_config.append(camera_config)
 
-        # observer camera
+        # observer camera — pose/size overridden by observer_camera config when provided
+        cfg = self.observer_camera_cfg
+        obs_width  = int(cfg["width"])        if cfg else 320
+        obs_height = int(cfg["height"])       if cfg else 240
+        obs_fovy   = float(cfg["fovy"])       if cfg else 93.0
         self.observer_camera = scene.add_camera(
             name="observer_camera",
-            width=320,
-            height=240,
-            fovy=np.deg2rad(93),
+            width=obs_width,
+            height=obs_height,
+            fovy=np.deg2rad(obs_fovy),
             near=near,
             far=far,
         )
-        observer_cam_pos = np.array([0.0, 0.23, 1.33])
-        observer_cam_forward = np.array([0, -1, -1.02])
-        # observer_cam_left = np.array([1,-1, 0])
-        observer_cam_left = np.array([1, 0, 0])
+        if cfg:
+            observer_cam_pos     = np.array(cfg["position"])
+            observer_cam_forward = np.array(cfg["forward"])
+            observer_cam_left    = np.array(cfg["left"])
+        else:
+            observer_cam_pos     = np.array([0.0, 0.23, 1.33])
+            observer_cam_forward = np.array([0, -1, -1.02])
+            observer_cam_left    = np.array([1, 0, 0])
         observer_up = np.cross(observer_cam_forward, observer_cam_left)
         observer_mat44 = np.eye(4)
         observer_mat44[:3, :3] = np.stack([observer_cam_forward, observer_cam_left, observer_up], axis=1)
@@ -272,8 +284,9 @@ class Camera:
 
     def update_picture(self):
         # camera
-        if self.collect_wrist_camera:
+        if self.collect_left_wrist_camera:
             self.left_camera.take_picture()
+        if self.collect_right_wrist_camera:
             self.right_camera.take_picture()
 
         for camera in self.static_camera_list:
@@ -288,8 +301,9 @@ class Camera:
         Update rendering to refresh the camera's RGBD information
         (rendering must be updated even when disabled, otherwise data cannot be collected).
         """
-        if self.collect_wrist_camera:
+        if self.collect_left_wrist_camera:
             self.left_camera.entity.set_pose(left_pose)
+        if self.collect_right_wrist_camera:
             self.right_camera.entity.set_pose(right_pose)
 
     def get_config(self) -> dict:
@@ -305,8 +319,9 @@ class Camera:
                 "cam2world_gl": camera_model_matrix,
             }
 
-        if self.collect_wrist_camera:
+        if self.collect_left_wrist_camera:
             res["left_camera"] = _get_config(self.left_camera)
+        if self.collect_right_wrist_camera:
             res["right_camera"] = _get_config(self.right_camera)
 
         for camera, camera_name in zip(self.static_camera_list, self.static_camera_name):
@@ -344,10 +359,11 @@ class Camera:
 
         res = {}
 
-        if self.collect_wrist_camera:
+        if self.collect_left_wrist_camera:
             res["left_camera"] = {}
-            res["right_camera"] = {}
             res["left_camera"]["rgba"] = _get_rgba(self.left_camera)
+        if self.collect_right_wrist_camera:
+            res["right_camera"] = {}
             res["right_camera"]["rgba"] = _get_rgba(self.right_camera)
 
         for camera, camera_name in zip(self.static_camera_list, self.static_camera_name):
@@ -392,10 +408,11 @@ class Camera:
             # 'right_camera':{}
         }
 
-        if self.collect_wrist_camera:
+        if self.collect_left_wrist_camera:
             res["left_camera"] = {}
-            res["right_camera"] = {}
             res["left_camera"][f"{level}_segmentation"] = _get_segmentation(self.left_camera, level=level)
+        if self.collect_right_wrist_camera:
+            res["right_camera"] = {}
             res["right_camera"][f"{level}_segmentation"] = _get_segmentation(self.right_camera, level=level)
 
         for camera, camera_name in zip(self.static_camera_list, self.static_camera_name):
@@ -425,12 +442,13 @@ class Camera:
         res = {}
         rgba = self.get_rgba()
 
-        if self.collect_wrist_camera:
+        if self.collect_left_wrist_camera:
             res["left_camera"] = {}
-            res["right_camera"] = {}
             res["left_camera"]["depth"] = _get_depth(self.left_camera)
-            res["right_camera"]["depth"] = _get_depth(self.right_camera)
             res["left_camera"]["depth"] *= rgba["left_camera"]["rgba"][:, :, 3] / 255
+        if self.collect_right_wrist_camera:
+            res["right_camera"] = {}
+            res["right_camera"]["depth"] = _get_depth(self.right_camera)
             res["right_camera"]["depth"] *= rgba["right_camera"]["rgba"][:, :, 3] / 255
         
         for camera, camera_name in zip(self.static_camera_list, self.static_camera_name):
@@ -547,11 +565,13 @@ class Camera:
         # Merge pointcloud
         if if_combine:
             # combined_pcd = np.vstack((head_pcd , left_pcd , right_pcd, front_pcd))
-            if self.collect_wrist_camera:
-                combined_pcd = np.vstack((
-                    _get_camera_pcd(self.left_camera),
-                    _get_camera_pcd(self.right_camera),
-                ))
+            wrist_pcds = []
+            if self.collect_left_wrist_camera:
+                wrist_pcds.append(_get_camera_pcd(self.left_camera))
+            if self.collect_right_wrist_camera:
+                wrist_pcds.append(_get_camera_pcd(self.right_camera))
+            if wrist_pcds:
+                combined_pcd = np.vstack(wrist_pcds)
             for camera, camera_name in zip(self.static_camera_list, self.static_camera_name):
                 if camera_name == "head_camera":
                     if self.collect_head_camera:

@@ -81,7 +81,19 @@ def pkl_files_to_hdf5_and_video(pkl_files, hdf5_path, video_path):
         pkl_file = load_pkl_file(pkl_file_path)
         append_data_to_structure(data_list, pkl_file)
 
-    images_to_video(np.array(data_list["observation"]["head_camera"]["rgb"]), out_path=video_path)
+    # images_to_video(np.array(data_list["observation"]["head_camera"]["rgb"]), out_path=video_path)
+
+    # observer camera video
+    if "observer_camera_rgb" in data_list and len(data_list["observer_camera_rgb"]) > 0:
+        observer_camera_video_path = video_path.replace(".mp4", "_observer_camera.mp4")
+        images_to_video(np.array(data_list["observer_camera_rgb"]), out_path=observer_camera_video_path)
+
+    # wrist camera videos (left_camera / right_camera)
+    obs = data_list.get("observation", {})
+    for cam_key in ("left_camera", "right_camera"):
+        if cam_key in obs and len(obs[cam_key].get("rgb", [])) > 0:
+            wrist_video_path = video_path.replace(".mp4", f"_{cam_key}.mp4")
+            images_to_video(np.array(obs[cam_key]["rgb"]), out_path=wrist_video_path)
 
     with h5py.File(hdf5_path, "w") as f:
         create_hdf5_from_dict(f, data_list)
