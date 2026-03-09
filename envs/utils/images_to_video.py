@@ -1,9 +1,6 @@
-import cv2
 import numpy as np
 import os
-import subprocess
-import pickle
-import pdb
+import imageio
 
 
 def images_to_video(imgs: np.ndarray, out_path: str, fps: float = 30.0, is_rgb: bool = True) -> None:
@@ -11,40 +8,12 @@ def images_to_video(imgs: np.ndarray, out_path: str, fps: float = 30.0, is_rgb: 
         raise ValueError("imgs must be a numpy.ndarray of shape (N, H, W, C), with C equal to 3 or 4.")
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     n_frames, H, W, C = imgs.shape
-    if C == 3:
-        pixel_format = "rgb24" if is_rgb else "bgr24"
-    else:
-        pixel_format = "rgba"
-    ffmpeg = subprocess.Popen(
-        [
-            "ffmpeg",
-            "-y",
-            "-loglevel",
-            "error",
-            "-f",
-            "rawvideo",
-            "-pixel_format",
-            pixel_format,
-            "-video_size",
-            f"{W}x{H}",
-            "-framerate",
-            str(fps),
-            "-i",
-            "-",
-            "-pix_fmt",
-            "yuv420p",
-            "-vcodec",
-            "libx264",
-            "-crf",
-            "23",
-            f"{out_path}",
-        ],
-        stdin=subprocess.PIPE,
-    )
-    ffmpeg.stdin.write(imgs.tobytes())
-    ffmpeg.stdin.close()
-    if ffmpeg.wait() != 0:
-        raise IOError(f"Cannot open ffmpeg. Please check the output path and ensure ffmpeg is supported.")
+
+    # Convert BGR → RGB if needed
+    if not is_rgb and C == 3:
+        imgs = imgs[..., ::-1]
+
+    imageio.mimwrite(out_path, imgs, fps=fps, codec="libx264", quality=7)
 
     print(
         f"🎬 Video is saved to `{out_path}`, containing \033[94m{n_frames}\033[0m frames at {W}×{H} resolution and {fps} FPS."
