@@ -27,3 +27,8 @@ envs/curobo/*
 
 /*.json*
 /*.txt
+
+# multiview helper
+observer_configs.json
+observer_configs_preview.png
+visualizations/
