@@ -129,11 +129,24 @@ def replace_placeholders_unseen(instruction: str, episode_params: Dict[str, str]
 
 
 def load_task_instructions(task_name: str) -> Dict[str, Any]:
-    """Load the task instructions from the JSON file."""
-    file_path = os.path.join(parent_directory, f"../task_instruction/{task_name}.json")
-    with open(file_path, "r") as f:
-        task_data = json.load(f)
-    return task_data
+    """Load the task instructions from the JSON file.
+
+    Search order:
+      1. task_instruction/{task_name}.json
+      2. single_arm_task_instruction/{task_name}.json
+    """
+    candidates = [
+        os.path.join(parent_directory, f"../task_instruction/{task_name}.json"),
+        os.path.join(parent_directory, f"../single_arm_task_instruction/{task_name}.json"),
+    ]
+    for file_path in candidates:
+        if os.path.exists(file_path):
+            with open(file_path, "r") as f:
+                return json.load(f)
+    raise FileNotFoundError(
+        f"No instruction file found for task '{task_name}'. Tried:\n" +
+        "\n".join(f"  {p}" for p in candidates)
+    )
 
 
 def load_scene_info(task_name: str, setting: str, scene_info_path: str) -> Dict[str, Dict]:
