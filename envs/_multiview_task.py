@@ -54,34 +54,34 @@ class Base_Task(gym.Env):
         - `self.render_fre`: Render frequency.
         """
         super().__init__()
-        ta.setup_logging("CRITICAL")  # hide logging
+        ta.setup_logging("CRITICAL")
         np.random.seed(kwags.get("seed", 0))
         torch.manual_seed(kwags.get("seed", 0))
-        # random.seed(kwags.get('seed', 0))
 
         self.FRAME_IDX = 0
         self.task_name = kwags.get("task_name")
         self.save_dir = kwags.get("save_path", "data")
         self.ep_num = kwags.get("now_ep_num", 0)
+        self.seed = kwags.get("seed", 0)
         self.render_freq = kwags.get("render_freq", 10)
         self.data_type = kwags.get("data_type", None)
         self.save_data = kwags.get("save_data", False)
         self.dual_arm = kwags.get("dual_arm", True)
         self.eval_mode = kwags.get("eval_mode", False)
+        self.need_topp = True
 
-        self.need_topp = True  # TODO
-
-        # Random
         random_setting = kwags.get("domain_randomization")
         self.random_background = random_setting.get("random_background", False)
+        self.fixed_background_id = random_setting.get("fixed_background_id", None)
         self.cluttered_table = random_setting.get("cluttered_table", False)
+        self.cluttered_numbers = random_setting.get("cluttered_numbers", 10)
         self.clean_background_rate = random_setting.get("clean_background_rate", 1)
         self.random_head_camera_dis = random_setting.get("random_head_camera_dis", 0)
         self.random_table_height = random_setting.get("random_table_height", 0)
         self.random_light = random_setting.get("random_light", False)
         self.crazy_random_light_rate = random_setting.get("crazy_random_light_rate", 0)
         self.crazy_random_light = (0 if not self.random_light else np.random.rand() < self.crazy_random_light_rate)
-        self.random_embodiment = random_setting.get("random_embodiment", False)  # TODO
+        self.random_embodiment = random_setting.get("random_embodiment", False)
 
         self.file_path = []
         self.plan_success = True
@@ -94,50 +94,46 @@ class Base_Task(gym.Env):
         self.raw_head_pcl = None
         self.real_head_pcl = None
         self.real_head_pcl_color = None
-
         self.now_obs = {}
         self.take_action_cnt = 0
         self.eval_video_path = kwags.get("eval_video_save_dir", None)
-
         self.save_freq = kwags.get("save_freq")
         self.world_pcd = None
-
         self.size_dict = list()
         self.cluttered_objs = list()
-        self.prohibited_area = list()  # [x_min, y_min, x_max, y_max]
-        self.record_cluttered_objects = list()  # record cluttered objects info
-
+        self.prohibited_area = list()
+        self.record_cluttered_objects = list()
         self.eval_success = False
-        self.table_z_bias = (np.random.uniform(low=-self.random_table_height, high=0) + table_height_bias)  # TODO
+        self.table_z_bias = (np.random.uniform(low=-self.random_table_height, high=0) + table_height_bias)
         self.need_plan = kwags.get("need_plan", True)
         self.left_joint_path = kwags.get("left_joint_path", [])
         self.right_joint_path = kwags.get("right_joint_path", [])
         self.left_cnt = 0
         self.right_cnt = 0
-
-        self.instruction = None  # for Eval
+        self.instruction = None
 
         self.create_table_and_wall(table_xy_bias=table_xy_bias, table_height=0.74)
         self.load_robot(**kwags)
+        self.move_robot()
         self.load_camera(**kwags)
         self.robot.move_to_homestate()
-
         render_freq = self.render_freq
         self.render_freq = 0
         self.together_open_gripper(save_freq=None)
         self.render_freq = render_freq
-
         self.robot.set_origin_endpose()
         self.load_actors()
+        self.create_robot_pedestals()
 
         if self.cluttered_table:
-            self.get_cluttered_table()
-
-        is_stable, unstable_list = self.check_stable()
-        if not is_stable:
-            raise UnStableError(
-                f'Objects is unstable in seed({kwags.get("seed", 0)}), unstable objects: {", ".join(unstable_list)}')
-
+            self.get_cluttered_table(cluttered_numbers=self.cluttered_numbers)
+        need_plan = kwags.get("need_plan", True)
+        collect_data = kwags.get("collect_data", False)
+        if need_plan or collect_data:
+            is_stable, unstable_list = self.check_stable()
+            if not is_stable:
+                raise UnStableError(
+                    f'Objects is unstable in seed({kwags.get("seed", 0)}), unstable objects: {", ".join(unstable_list)}')
         if self.eval_mode:
             with open(os.path.join(CONFIGS_PATH, "_eval_step_limit.yml"), "r") as f:
                 try:
@@ -146,18 +142,12 @@ class Base_Task(gym.Env):
                 except:
                     print(f"{self.task_name} not in step limit file, set to 1000")
                     self.step_lim = 1000
-
-        # info
         self.info = dict()
         self.info["cluttered_table_info"] = self.record_cluttered_objects
-        self.info["texture_info"] = {
-            "wall_texture": self.wall_texture,
-            "table_texture": self.table_texture,
-        }
+        self.info["texture_info"] = {"wall_texture": self.wall_texture, "table_texture": self.table_texture}
         self.info["info"] = {}
-
         self.stage_success_tag = False
-
+    
     def check_stable(self):
         actors_list, actors_pose_list = [], []
         for actor in self.scene.get_all_actors():
@@ -293,26 +283,87 @@ class Base_Task(gym.Env):
         else:
             self.wall_texture, self.table_texture = None, None
 
-        self.wall = create_box(
+        self.wall_front = create_box(
             self.scene,
-            sapien.Pose(p=[0, 1, 1.5]),
-            half_size=[3, 0.6, 1.5],
+            sapien.Pose(p=[3, 0, 1.5]),
+            half_size=[0.1, 3, 1.5],
             color=(1, 0.9, 0.9),
             name="wall",
             texture_id=self.wall_texture,
+            is_static=True,
+        )
+        self.wall_back = create_box(
+            self.scene,
+            sapien.Pose(p=[-3, 0, 1.5]),
+            half_size=[0.1, 3, 1.5],
+            color=(1, 0.9, 0.9),
+            name="wall",
+            texture_id=self.wall_texture,
+            is_static=True,
+        )
+        self.wall_left = create_box(
+            self.scene,
+            sapien.Pose(p=[0, -3, 1.5]),
+            half_size=[3, 0.1, 1.5],
+            color=(1, 0.9, 0.9),
+            name="wall",
+            texture_id=self.wall_texture,
+            is_static=True,
+        )
+        self.wall_right = create_box(
+            self.scene,
+            sapien.Pose(p=[0, 3, 1.5]),
+            half_size=[3, 0.1, 1.5],
+            color=(1, 0.9, 0.9),
+            name="wall",
+            texture_id=self.wall_texture,
+            is_static=True,
+        )
+        self.floor = create_box(
+            self.scene,
+            sapien.Pose(p=[0, 0, 0.001]),
+            half_size=[3, 3, 0.001],
+            color=(1, 0.9, 0.9),
+            name="ground",
+            texture_id="seen/309",
             is_static=True,
         )
 
         self.table = create_table(
             self.scene,
             sapien.Pose(p=[table_xy_bias[0], table_xy_bias[1], table_height]),
-            length=1.2,
-            width=0.7,
+            length=1.4,
+            width=1.2,
             height=table_height,
             thickness=0.05,
             is_static=True,
-            texture_id=self.table_texture,
+            texture_id="seen/9477",
         )
+
+    def create_robot_pedestals(self):
+        color = (0.25, 0.25, 0.25)
+
+        def _make_pedestal(pose, name):
+            mount_z = pose.p[2]
+            if mount_z <= 0:
+                return
+            table_top_z = 0.74 + self.table_z_bias
+            plate_h = 0.015
+            plate_half_w = 0.15
+            create_box(
+                self.scene,
+                sapien.Pose(p=[pose.p[0], pose.p[1], table_top_z + plate_h]),
+                half_size=[plate_half_w, plate_half_w, plate_h],
+                color=color,
+                name=name,
+                is_static=True,
+            )
+
+        arm_tag = getattr(self, "arm_tag", None)
+        if arm_tag is None or str(arm_tag) == "left":
+            _make_pedestal(self.robot.left_entity_origion_pose, "pedestal_left")
+        if arm_tag is None or str(arm_tag) == "right":
+            _make_pedestal(self.robot.right_entity_origion_pose, "pedestal_right")
 
     def get_cluttered_table(self, cluttered_numbers=10, xlim=[-0.59, 0.59], ylim=[-0.34, 0.34], zlim=[0.741]):
         self.record_cluttered_objects = []  # record cluttered objects
@@ -387,10 +438,12 @@ class Base_Task(gym.Env):
         """
         if not hasattr(self, "robot"):
             self.robot = Robot(self.scene, self.need_topp, **kwags)
+            self.move_robot()
             self.robot.set_planner(self.scene)
             self.robot.init_joints()
         else:
             self.robot.reset(self.scene, self.need_topp, **kwags)
+            self.move_robot()
 
         for link in self.robot.left_entity.get_links():
             link: sapien.physx.PhysxArticulationLinkComponent = link
@@ -398,6 +451,21 @@ class Base_Task(gym.Env):
         for link in self.robot.right_entity.get_links():
             link: sapien.physx.PhysxArticulationLinkComponent = link
             link.set_mass(1)
+
+    def move_robot(self):
+        # Must update entity origin pose to change inverse kinematics base!
+        right_pose = sapien.Pose([0.0, -0.35, 0.77], self.robot.right_entity_origion_pose.q)
+        self.robot.right_entity_origion_pose = right_pose
+        self.robot.right_entity.set_root_pose(right_pose)
+
+        left_pose = sapien.Pose([0.0, 0.0, -10.0], self.robot.left_entity_origion_pose.q)
+        self.robot.left_entity_origion_pose = left_pose
+        self.robot.left_entity.set_root_pose(left_pose)
+        
+        # NOTE: SAPIEN requires calling step() and update_render() so that the 
+        # camera positions attached to the robot (or other static poses) are properly updated
+        self.scene.step()
+        self.scene.update_render()
 
     def load_camera(self, **kwags):
         """
@@ -429,7 +497,10 @@ class Base_Task(gym.Env):
             now_ambient_light = self.scene.ambient_light
             now_ambient_light = np.clip(np.array(now_ambient_light) + np.random.rand(3) * 0.2 - 0.1, 0, 1)
             self.scene.set_ambient_light(now_ambient_light)
+            
         self.cameras.update_wrist_camera(self.robot.left_camera.get_pose(), self.robot.right_camera.get_pose())
+        
+        # update_render has to be called to sync pose from SAPIEN to renderer
         self.scene.update_render()
 
     # =========================================================== Basic APIs ===========================================================
@@ -453,6 +524,10 @@ class Base_Task(gym.Env):
 
         if self.data_type.get("observer_camera", False):
             observer_camera_rgb = self.cameras.get_observer_rgb()
+            # Need to create 'observer_camera' in observation if not exists
+            if "observer_camera" not in pkl_dic["observation"]:
+                pkl_dic["observation"]["observer_camera"] = {}
+            pkl_dic["observation"]["observer_camera"]["rgb"] = observer_camera_rgb
             pkl_dic["observer_camera_rgb"] = observer_camera_rgb
         # mesh_segmentation
         if self.data_type.get("mesh_segmentation", False):
