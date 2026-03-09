@@ -112,7 +112,10 @@ class Base_Task(gym.Env):
         self.right_cnt = 0
         self.instruction = None
 
-        self.create_table_and_wall(table_xy_bias=table_xy_bias, table_height=0.74)
+        self.scene_config = kwags.get("scene", {})
+        table_xy_bias = self.scene_config.get("table_xy_bias", table_xy_bias)
+        table_height_base = self.scene_config.get("table_height", 0.74)
+        self.create_table_and_wall(table_xy_bias=table_xy_bias, table_height=table_height_base)
         self.load_robot(**kwags)
         self.move_robot()
         self.load_camera(**kwags)
@@ -262,6 +265,7 @@ class Base_Task(gym.Env):
         self.table_xy_bias = table_xy_bias
         wall_texture, table_texture = None, None
         table_height += self.table_z_bias
+        cfg = getattr(self, "scene_config", {})
 
         if self.random_background:
             texture_type = "seen" if not self.eval_mode else "unseen"
@@ -283,73 +287,73 @@ class Base_Task(gym.Env):
         else:
             self.wall_texture, self.table_texture = None, None
 
-        self.wall_front = create_box(
-            self.scene,
-            sapien.Pose(p=[3, 0, 1.5]),
-            half_size=[0.1, 3, 1.5],
-            color=(1, 0.9, 0.9),
-            name="wall",
-            texture_id=self.wall_texture,
-            is_static=True,
-        )
-        self.wall_back = create_box(
-            self.scene,
-            sapien.Pose(p=[-3, 0, 1.5]),
-            half_size=[0.1, 3, 1.5],
-            color=(1, 0.9, 0.9),
-            name="wall",
-            texture_id=self.wall_texture,
-            is_static=True,
-        )
-        self.wall_left = create_box(
-            self.scene,
-            sapien.Pose(p=[0, -3, 1.5]),
-            half_size=[3, 0.1, 1.5],
-            color=(1, 0.9, 0.9),
-            name="wall",
-            texture_id=self.wall_texture,
-            is_static=True,
-        )
-        self.wall_right = create_box(
-            self.scene,
-            sapien.Pose(p=[0, 3, 1.5]),
-            half_size=[3, 0.1, 1.5],
-            color=(1, 0.9, 0.9),
-            name="wall",
-            texture_id=self.wall_texture,
-            is_static=True,
-        )
+        wall_color = tuple(cfg.get("wall_color", [1, 0.9, 0.9]))
+        for key, default_pose, default_half in [
+            ("wall_front", [3, 0, 1.5], [0.1, 3, 1.5]),
+            ("wall_back", [-3, 0, 1.5], [0.1, 3, 1.5]),
+            ("wall_left", [0, -3, 1.5], [3, 0.1, 1.5]),
+            ("wall_right", [0, 3, 1.5], [3, 0.1, 1.5]),
+        ]:
+            w = cfg.get(key, {})
+            if not isinstance(w, dict):
+                w = {}
+            p = w.get("position", default_pose)
+            h = w.get("half_size", default_half)
+            setattr(
+                self,
+                key,
+                create_box(
+                    self.scene,
+                    sapien.Pose(p=p),
+                    half_size=h,
+                    color=wall_color,
+                    name="wall",
+                    texture_id=self.wall_texture,
+                    is_static=True,
+                ),
+            )
+
+        fp = cfg.get("floor_position", [0, 0, 0.001])
+        fh = cfg.get("floor_half_size", [3, 3, 0.001])
+        fc = tuple(cfg.get("floor_color", [1, 0.9, 0.9]))
+        ft = cfg.get("floor_texture_id", "seen/309")
         self.floor = create_box(
             self.scene,
-            sapien.Pose(p=[0, 0, 0.001]),
-            half_size=[3, 3, 0.001],
-            color=(1, 0.9, 0.9),
+            sapien.Pose(p=fp),
+            half_size=fh,
+            color=fc,
             name="ground",
-            texture_id="seen/309",
+            texture_id=ft,
             is_static=True,
         )
 
+        table_length = cfg.get("table_length", 1.4)
+        table_width = cfg.get("table_width", 1.2)
+        table_thickness = cfg.get("table_thickness", 0.05)
+        table_texture_id = cfg.get("table_texture_id", "seen/9477")
         self.table = create_table(
             self.scene,
             sapien.Pose(p=[table_xy_bias[0], table_xy_bias[1], table_height]),
-            length=1.4,
-            width=1.2,
+            length=table_length,
+            width=table_width,
             height=table_height,
-            thickness=0.05,
+            thickness=table_thickness,
             is_static=True,
-            texture_id="seen/9477",
+            texture_id=table_texture_id,
         )
 
     def create_robot_pedestals(self):
-        color = (0.25, 0.25, 0.25)
+        cfg = getattr(self, "scene_config", {})
+        color = tuple(cfg.get("pedestal_color", [0.25, 0.25, 0.25]))
+        table_height_base = cfg.get("table_height", 0.74)
+        plate_h = cfg.get("pedestal_plate_h", 0.015)
+        plate_half_w = cfg.get("pedestal_plate_half_w", 0.15)
 
         def _make_pedestal(pose, name):
             mount_z = pose.p[2]
             if mount_z <= 0:
                 return
-            table_top_z = 0.74 + self.table_z_bias
-            plate_h = 0.015
-            plate_half_w = 0.15
+            table_top_z = table_height_base + self.table_z_bias
             create_box(
                 self.scene,
                 sapien.Pose(p=[pose.p[0], pose.p[1], table_top_z + plate_h]),
@@ -436,13 +440,15 @@ class Base_Task(gym.Env):
         """
         load aloha robot urdf file, set root pose and set joints
         """
+        # exclude scene config (yml) so Robot gets only the SAPIEN scene as first arg
+        robot_kwags = {k: v for k, v in kwags.items() if k != "scene"}
         if not hasattr(self, "robot"):
-            self.robot = Robot(self.scene, self.need_topp, **kwags)
+            self.robot = Robot(self.scene, self.need_topp, **robot_kwags)
             self.move_robot()
             self.robot.set_planner(self.scene)
             self.robot.init_joints()
         else:
-            self.robot.reset(self.scene, self.need_topp, **kwags)
+            self.robot.reset(self.scene, self.need_topp, **robot_kwags)
             self.move_robot()
 
         for link in self.robot.left_entity.get_links():
@@ -454,11 +460,14 @@ class Base_Task(gym.Env):
 
     def move_robot(self):
         # Must update entity origin pose to change inverse kinematics base!
-        right_pose = sapien.Pose([0.0, -0.35, 0.77], self.robot.right_entity_origion_pose.q)
+        cfg = getattr(self, "scene_config", {})
+        right_xyz = cfg.get("robot_right_arm_root_position", [0.0, -0.35, 0.77])
+        left_xyz = cfg.get("robot_left_arm_root_position", [0.0, 0.0, -10.0])
+        right_pose = sapien.Pose(right_xyz, self.robot.right_entity_origion_pose.q)
         self.robot.right_entity_origion_pose = right_pose
         self.robot.right_entity.set_root_pose(right_pose)
 
-        left_pose = sapien.Pose([0.0, 0.0, -10.0], self.robot.left_entity_origion_pose.q)
+        left_pose = sapien.Pose(left_xyz, self.robot.left_entity_origion_pose.q)
         self.robot.left_entity_origion_pose = left_pose
         self.robot.left_entity.set_root_pose(left_pose)
         
@@ -614,12 +623,12 @@ class Base_Task(gym.Env):
             traj_data = pickle.load(f)
         return traj_data
 
-    def merge_pkl_to_hdf5_video(self):
+    def merge_pkl_to_hdf5_video(self, episode_suffix=""):
         if not self.save_data:
             return
         cache_path = self.folder_path["cache"]
-        target_file_path = f"{self.save_dir}/data/episode{self.ep_num}.hdf5"
-        target_video_path = f"{self.save_dir}/video/episode{self.ep_num}.mp4"
+        target_file_path = f"{self.save_dir}/data/episode{self.ep_num}{episode_suffix}.hdf5"
+        target_video_path = f"{self.save_dir}/video/episode{self.ep_num}{episode_suffix}.mp4"
         # print('Merging pkl to hdf5: ', cache_path, ' -> ', target_file_path)
 
         os.makedirs(f"{self.save_dir}/data", exist_ok=True)

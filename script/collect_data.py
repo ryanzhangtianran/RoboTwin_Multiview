@@ -126,6 +126,8 @@ def run(TASK_ENV, args):
 
         while suc_num < args["episode_num"]:
             try:
+                if args.get("save_all", False):
+                    args["save_data"] = True
                 TASK_ENV.setup_demo(now_ep_num=suc_num, seed=epid, **args)
                 TASK_ENV.play_once()
 
@@ -133,9 +135,16 @@ def run(TASK_ENV, args):
                     print(f"simulate data episode {suc_num} success! (seed = {epid})")
                     seed_list.append(epid)
                     TASK_ENV.save_traj_data(suc_num)
+                    if args.get("save_all", False):
+                        TASK_ENV.merge_pkl_to_hdf5_video()
+                        TASK_ENV.remove_data_cache()
                     suc_num += 1
                 else:
                     print(f"simulate data episode {suc_num} fail! (seed = {epid})")
+                    if args.get("save_all", False):
+                        TASK_ENV.merge_pkl_to_hdf5_video(episode_suffix=f"_fail_{epid}")
+                        TASK_ENV.remove_data_cache()
+                        print(f"\033[93m  [save_all] saved wrist + observer video for failed seed {epid}\033[0m")
                     fail_num += 1
 
                 TASK_ENV.close_env()

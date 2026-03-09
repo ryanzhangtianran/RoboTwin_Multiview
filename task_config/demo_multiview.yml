@@ -4,6 +4,34 @@ render_freq: 0
 episode_num: 5
 use_seed: false
 save_freq: 15
+
+# Scene: table, walls, floor, robot base positions (used by _multiview_task)
+scene:
+  table_xy_bias: [0, 0]
+  table_height: 0.74
+  table_length: 1.4
+  table_width: 1.2
+  table_thickness: 0.05
+  table_texture_id: "seen/9477"
+  # Walls: position [x,y,z], half_size [x,y,z]
+  wall_front:  { position: [3, 0, 1.5], half_size: [0.1, 3, 1.5] }
+  wall_back:   { position: [-3, 0, 1.5], half_size: [0.1, 3, 1.5] }
+  wall_left:   { position: [0, -3, 1.5], half_size: [3, 0.1, 1.5] }
+  wall_right:  { position: [0, 3, 1.5], half_size: [3, 0.1, 1.5] }
+  wall_color: [1, 0.9, 0.9]
+  # Floor
+  floor_position: [0, 0, 0.001]
+  floor_half_size: [3, 3, 0.001]
+  floor_color: [1, 0.9, 0.9]
+  floor_texture_id: "seen/309"
+  # Robot root poses (move_robot) [x, y, z]
+  robot_right_arm_root_position: [0.0, -0.35, 0.77]
+  robot_left_arm_root_position: [0.0, 0.0, -10.0]
+  # Pedestal (create_robot_pedestals)
+  pedestal_plate_h: 0.015
+  pedestal_plate_half_w: 0.15
+  pedestal_color: [0.25, 0.25, 0.25]
+
 embodiment: 
   - franka-panda   
   - franka-panda
