@@ -1,10 +1,10 @@
-from ._base_task import Base_Task
+from ._multiview_task import Base_Task as Base_Task_Multiview
 from .utils import *
 import sapien
 from copy import deepcopy
 
 
-class put_bottles_dustbin(Base_Task):
+class put_bottles_dustbin(Base_Task_Multiview):
 
     def setup_demo(self, **kwags):
         super()._init_task_env_(table_xy_bias=[0.3, 0], **kwags)

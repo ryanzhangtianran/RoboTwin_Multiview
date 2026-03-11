@@ -142,9 +142,12 @@ def run(TASK_ENV, args):
                 else:
                     print(f"simulate data episode {suc_num} fail! (seed = {epid})")
                     if args.get("save_all", False):
-                        TASK_ENV.merge_pkl_to_hdf5_video(episode_suffix=f"_fail_{epid}")
+                        did_save = TASK_ENV.merge_pkl_to_hdf5_video(episode_suffix=f"_fail_{epid}")
                         TASK_ENV.remove_data_cache()
-                        print(f"\033[93m  [save_all] saved wrist + observer video for failed seed {epid}\033[0m")
+                        if did_save:
+                            print(f"\033[93m  [save_all] saved wrist + observer video for failed seed {epid}\033[0m")
+                        else:
+                            print(f"\033[93m  [save_all] no video (no frames saved, e.g. failed before first move) seed {epid}\033[0m")
                     fail_num += 1
 
                 TASK_ENV.close_env()

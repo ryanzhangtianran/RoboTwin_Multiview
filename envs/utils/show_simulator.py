@@ -18,8 +18,6 @@ from script.collect_data import get_embodiment_config
 
 TABLE_XY_BIAS_DEFAULT = [0, 0]           # _init_task_env_(table_xy_bias=...)
 TABLE_HEIGHT_BIAS_DEFAULT = 0             # _init_task_env_(table_height_bias=...)
-RIGHT_ROBOT_XYZ_DEFAULT = [0.0, -0.35, 0.77]   # move_robot() 右臂底座
-LEFT_ROBOT_XYZ_DEFAULT = [0.0, 0.0, -10.0]    # move_robot() 左臂底座（藏起）
 
 
 def get_default_domain_randomization():
@@ -97,32 +95,6 @@ def build_simulator_init_args(
     return args
 
 
-def apply_robot_origin_poses(env, right_xyz=None, left_xyz=None):
-    """
-    仿照 _multiview_task.move_robot() 设置机械臂底座位置。
-    right_xyz / left_xyz: 长度为 3 的 [x, y, z]，与 create_table_and_wall 后的桌面相对。
-    未传入的一侧保持 env 当前 pose 不变。
-    """
-    if right_xyz is not None:
-        right_xyz = np.asarray(right_xyz, dtype=np.float64)
-        if right_xyz.size != 3:
-            raise ValueError("right_robot_xyz must be 3 floats (x y z)")
-        q = env.robot.right_entity_origion_pose.q
-        right_pose = sapien.Pose(right_xyz, q)
-        env.robot.right_entity_origion_pose = right_pose
-        env.robot.right_entity.set_root_pose(right_pose)
-    if left_xyz is not None:
-        left_xyz = np.asarray(left_xyz, dtype=np.float64)
-        if left_xyz.size != 3:
-            raise ValueError("left_robot_xyz must be 3 floats (x y z)")
-        q = env.robot.left_entity_origion_pose.q
-        left_pose = sapien.Pose(left_xyz, q)
-        env.robot.left_entity_origion_pose = left_pose
-        env.robot.left_entity.set_root_pose(left_pose)
-    env.scene.step()
-    env._update_render()
-
-
 def build_base_args(task_name: str, task_config: str) -> dict:
     config_path = f"./task_config/{task_config}.yml"
     with open(config_path, "r", encoding="utf-8") as f:
@@ -159,7 +131,7 @@ def build_base_args(task_name: str, task_config: str) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Visualize simulator and save images from multi-view configs without action planning.")
-    parser.add_argument("--task_name", type=str, default="place_can_basket_single")
+    parser.add_argument("--task_name", type=str, default="place_can_basket")
     parser.add_argument("--task_config", type=str, default="demo_multiview")
     parser.add_argument("--seed", type=int, default=0, help="Random seed for env init (same as _init_task_env_)")
     parser.add_argument("--observer_configs", type=str, default="observer_configs.json")
@@ -167,11 +139,8 @@ def main():
     parser.add_argument("--num_views", type=int, default=10, help="Number of views to render")
     parser.add_argument("--run_demo", action="store_true", help="Run play_once() so arms move, then capture multi-view (saved images show post-demo state)")
     parser.add_argument("--render_freq", type=int, default=0, help="If >0, create Viewer (requires display); 0=headless, no window (default)")
-    # 与 _multiview_task 缺省一致：桌面（_init_task_env_）、机械臂底座（move_robot）
-    parser.add_argument("--table_xy_bias", type=str, default=",".join(map(str, TABLE_XY_BIAS_DEFAULT)), help="Table xy bias 'x,y', default same as _multiview_task")
-    parser.add_argument("--table_height_bias", type=float, default=TABLE_HEIGHT_BIAS_DEFAULT, help="Table height bias (m), default same as _multiview_task")
-    parser.add_argument("--right_robot_xyz", type=str, default=None, help="Right arm base 'x,y,z'; default same as _multiview_task move_robot (omit to use env default)")
-    parser.add_argument("--left_robot_xyz", type=str, default=None, help="Left arm base 'x,y,z'; default same as _multiview_task move_robot (omit to use env default)")
+    parser.add_argument("--table_xy_bias", type=str, default=",".join(map(str, TABLE_XY_BIAS_DEFAULT)), help="Table xy bias 'x,y'")
+    parser.add_argument("--table_height_bias", type=float, default=TABLE_HEIGHT_BIAS_DEFAULT, help="Table height bias (m)")
     parsed = parser.parse_args()
 
     # 保证工作目录为项目根，否则 ./assets/ 下的材质路径无法加载
@@ -206,16 +175,6 @@ def main():
     # 部分任务会显式传 table_xy_bias（如 put_bottles_dustbin_single），若 args 里也有会报 multiple values
     args_for_setup = {k: v for k, v in args.items() if k not in ("table_xy_bias", "table_height_bias")}
     env.setup_demo(**args_for_setup)
-
-    # 可选：覆盖机械臂底座位置（与 _multiview_task.move_robot 一致，默认 right=[0,-0.35,0.77], left=[0,0,-10]）
-    right_xyz = None
-    left_xyz = None
-    if parsed.right_robot_xyz is not None:
-        right_xyz = [float(x.strip()) for x in parsed.right_robot_xyz.split(",")]
-    if parsed.left_robot_xyz is not None:
-        left_xyz = [float(x.strip()) for x in parsed.left_robot_xyz.split(",")]
-    if right_xyz is not None or left_xyz is not None:
-        apply_robot_origin_poses(env, right_xyz=right_xyz, left_xyz=left_xyz)
 
     if parsed.run_demo:
         print("Running demo (play_once)...")

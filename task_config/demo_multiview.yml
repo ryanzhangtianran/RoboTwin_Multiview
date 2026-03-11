@@ -4,45 +4,12 @@ render_freq: 0
 episode_num: 5
 use_seed: false
 save_freq: 15
-
-# Scene: table, walls, floor, robot base positions (used by _multiview_task)
-scene:
-  table_xy_bias: [0, 0]
-  table_height: 0.74
-  table_length: 1.4
-  table_width: 1.2
-  table_thickness: 0.05
-  table_texture_id: "seen/9477"
-  # Walls: position [x,y,z], half_size [x,y,z]
-  wall_front:  { position: [3, 0, 1.5], half_size: [0.1, 3, 1.5] }
-  wall_back:   { position: [-3, 0, 1.5], half_size: [0.1, 3, 1.5] }
-  wall_left:   { position: [0, -3, 1.5], half_size: [3, 0.1, 1.5] }
-  wall_right:  { position: [0, 3, 1.5], half_size: [3, 0.1, 1.5] }
-  wall_color: [1, 0.9, 0.9]
-  # Floor
-  floor_position: [0, 0, 0.001]
-  floor_half_size: [3, 3, 0.001]
-  floor_color: [1, 0.9, 0.9]
-  floor_texture_id: "seen/309"
-  # Robot root poses (move_robot) [x, y, z]
-  robot_right_arm_root_position: [0.0, -0.35, 0.77]
-  robot_left_arm_root_position: [0.0, 0.0, -10.0]
-  # Pedestal (create_robot_pedestals)
-  pedestal_plate_h: 0.015
-  pedestal_plate_half_w: 0.15
-  pedestal_color: [0.25, 0.25, 0.25]
-
-embodiment: 
-  - franka-panda   
-  - franka-panda
-  - 0.0
+embodiment: [aloha-agilex]
 language_num: 100
 domain_randomization:
   random_background: false
-  fixed_background_id: 252
   cluttered_table: false
-  cluttered_numbers: 5
-  clean_background_rate: 0
+  clean_background_rate: 1
   random_head_camera_dis: 0
   random_table_height: 0
   random_light: false
@@ -50,15 +17,15 @@ domain_randomization:
 camera:
   head_camera_type: D435
   wrist_camera_type: D435
-  collect_head_camera: false
+  collect_head_camera: true
   collect_wrist_camera: true
-  collect_left_wrist_camera: false
+  collect_left_wrist_camera: true
   collect_right_wrist_camera: true
 data_type:
   rgb: true
+  observer_camera: true
   depth: false
   pointcloud: false
-  observer_camera: true
   endpose: true
   qpos: true
   mesh_segmentation: false
@@ -69,4 +36,3 @@ save_path: ./data
 clear_cache_freq: 5
 collect_data: true
 eval_video_log: true
-arm_tag: right
