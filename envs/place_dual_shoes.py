@@ -1,11 +1,11 @@
-from ._base_task import Base_Task
+from ._multiview_task import Multiview_Task
 from .utils import *
 import math
 import sapien
 from ._GLOBAL_CONFIGS import *
 
 
-class place_dual_shoes(Base_Task):
+class place_dual_shoes(Multiview_Task):
 
     def setup_demo(self, is_test=False, **kwags):
         super()._init_task_env_(table_height_bias=-0.1, **kwags)

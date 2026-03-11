@@ -39,12 +39,12 @@ FOVY_DEG = 93.0
 # ---------------------------------------------------------------------------
 # Spherical shell: camera positions on shell around (0, 0, 0.74)
 # ---------------------------------------------------------------------------
-SHELL_RADIUS_MIN = 0.8   # m
-SHELL_RADIUS_MAX = 1.1   # m
+SHELL_RADIUS_MIN = 0.5   # m
+SHELL_RADIUS_MAX = 0.8   # m
 AZIMUTH_HALF_DEG = 75.0
-CAM_Y_MIN = 0.3
-CAM_Z_MIN = 1.1
-CAM_Z_MAX = 1.6
+CAM_Y_MIN = 0.1
+CAM_Z_MIN = 0.9
+CAM_Z_MAX = 1.4
 
 # How many degrees inside the FOV boundary each key point must fall
 VISIBILITY_MARGIN_DEG = 8.0

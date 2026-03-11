@@ -1,10 +1,10 @@
-from ._base_task import Base_Task
+from ._multiview_task import Multiview_Task
 from .utils import *
 import numpy as np
 from ._GLOBAL_CONFIGS import *
 
 
-class hanging_mug(Base_Task):
+class hanging_mug(Multiview_Task):
 
     def setup_demo(self, is_test=False, **kwags):
         super()._init_task_env_(**kwags)

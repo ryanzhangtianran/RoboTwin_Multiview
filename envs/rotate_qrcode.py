@@ -1,10 +1,10 @@
-from ._base_task import Base_Task
+from ._multiview_task import Multiview_Task
 from .utils import *
 import sapien
 from copy import deepcopy
 
 
-class rotate_qrcode(Base_Task):
+class rotate_qrcode(Multiview_Task):
 
     def setup_demo(self, **kwags):
         super()._init_task_env_(**kwags)

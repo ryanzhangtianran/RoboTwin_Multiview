@@ -1,5 +1,5 @@
 from copy import deepcopy
-from ._base_task import Base_Task
+from ._multiview_task import Multiview_Task
 from .utils import *
 import sapien
 import math
@@ -7,7 +7,7 @@ import glob
 import numpy as np
 
 
-class place_object_scale(Base_Task):
+class place_object_scale(Multiview_Task):
 
     def setup_demo(self, **kwags):
         super()._init_task_env_(**kwags)

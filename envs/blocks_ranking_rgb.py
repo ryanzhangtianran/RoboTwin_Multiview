@@ -1,11 +1,11 @@
-from ._base_task import Base_Task
+from ._multiview_task import Multiview_Task
 from .utils import *
 import sapien
 import math
 import numpy as np
 
 
-class blocks_ranking_rgb(Base_Task):
+class blocks_ranking_rgb(Multiview_Task):
 
     def setup_demo(self, **kwags):
         super()._init_task_env_(**kwags)

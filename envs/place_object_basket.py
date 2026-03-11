@@ -1,10 +1,10 @@
-from ._base_task import Base_Task
+from ._multiview_task import Multiview_Task
 from .utils import *
 import sapien
 import math
 
 
-class place_object_basket(Base_Task):
+class place_object_basket(Multiview_Task):
 
     def setup_demo(self, is_test=False, **kwags):
         super()._init_task_env_(**kwags)

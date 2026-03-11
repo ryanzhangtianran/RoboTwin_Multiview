@@ -1,10 +1,10 @@
-from ._base_task import Base_Task
+from ._multiview_task import Multiview_Task
 from .utils import *
 import sapien
 from copy import deepcopy
 
 
-class pick_diverse_bottles(Base_Task):
+class pick_diverse_bottles(Multiview_Task):
 
     def setup_demo(self, **kwags):
         super()._init_task_env_(**kwags)

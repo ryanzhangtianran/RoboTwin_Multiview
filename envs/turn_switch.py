@@ -1,8 +1,8 @@
-from ._base_task import Base_Task
+from ._multiview_task import Multiview_Task
 from .utils import *
 
 
-class turn_switch(Base_Task):
+class turn_switch(Multiview_Task):
 
     def setup_demo(self, is_test=False, **kwargs):
         super()._init_task_env_(**kwargs)

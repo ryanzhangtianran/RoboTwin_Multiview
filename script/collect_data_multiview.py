@@ -21,7 +21,7 @@ Directory layout produced:
     view_029/
 
 Usage:
-  python script/collect_multiview.py place_can_basket_single demo_clean_side \\
+  python script/collect_multiview.py place_can_basket demo_multiview \\
       --num_views 30 --episodes_per_view 10 \\
       --observer_configs observer_configs.json \\
       --gpu 0

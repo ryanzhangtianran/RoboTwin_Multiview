@@ -1,11 +1,11 @@
-from ._base_task import Base_Task
+from ._multiview_task import Multiview_Task
 from .utils import *
 import sapien
 import math
 from copy import deepcopy
 
 
-class move_can_pot(Base_Task):
+class move_can_pot(Multiview_Task):
 
     def setup_demo(self, is_test=False, **kwargs):
         super()._init_task_env_(**kwargs)

@@ -1,4 +1,4 @@
-from ._base_task import Base_Task
+from ._multiview_task import Multiview_Task
 from .utils import *
 import sapien
 import math
@@ -8,7 +8,7 @@ import time
 import numpy as np
 
 
-class stamp_seal(Base_Task):
+class stamp_seal(Multiview_Task):
 
     def setup_demo(self, **kwags):
         super()._init_task_env_(**kwags)

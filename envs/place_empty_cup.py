@@ -1,9 +1,9 @@
-from ._base_task import Base_Task
+from ._multiview_task import Multiview_Task
 from .utils import *
 import sapien
 
 
-class place_empty_cup(Base_Task):
+class place_empty_cup(Multiview_Task):
 
     def setup_demo(self, **kwags):
         super()._init_task_env_(**kwags)

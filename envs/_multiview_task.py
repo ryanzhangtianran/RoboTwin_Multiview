@@ -33,7 +33,7 @@ current_file_path = os.path.abspath(__file__)
 parent_directory = os.path.dirname(current_file_path)
 
 
-class Base_Task(gym.Env):
+class Multiview_Task(gym.Env):
 
     def __init__(self):
         pass
@@ -291,17 +291,17 @@ class Base_Task(gym.Env):
             if np.random.rand() <= self.clean_background_rate:
                 self.table_texture = None
         else:
-            self.wall_texture, self.table_texture = None, None
+            self.wall_texture, self.table_texture = None, "seen/379"
 
-        self.wall = create_box(
-            self.scene,
-            sapien.Pose(p=[0, 1, 1.5]),
-            half_size=[3, 0.6, 1.5],
-            color=(1, 0.9, 0.9),
-            name="wall",
-            texture_id=self.wall_texture,
-            is_static=True,
-        )
+        # self.wall = create_box(
+        #     self.scene,
+        #     sapien.Pose(p=[0, 1, 1.5]),
+        #     half_size=[3, 0.6, 1.5],
+        #     color=(1, 0.9, 0.9),
+        #     name="wall",
+        #     texture_id=self.wall_texture,
+        #     is_static=True,
+        # )
 
         self.table = create_table(
             self.scene,
