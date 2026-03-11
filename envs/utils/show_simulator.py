@@ -3,6 +3,7 @@
 import sys
 import os
 import argparse
+import importlib
 import json
 import yaml
 import numpy as np
@@ -13,7 +14,6 @@ from PIL import Image
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
 from envs._GLOBAL_CONFIGS import CONFIGS_PATH
-from envs.task_loader import get_env_class
 from script.collect_data import get_embodiment_config
 
 TABLE_XY_BIAS_DEFAULT = [0, 0]           # _init_task_env_(table_xy_bias=...)
@@ -143,7 +143,6 @@ def main():
     parser.add_argument("--table_height_bias", type=float, default=TABLE_HEIGHT_BIAS_DEFAULT, help="Table height bias (m)")
     parsed = parser.parse_args()
 
-    # 保证工作目录为项目根，否则 ./assets/ 下的材质路径无法加载
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     os.chdir(project_root)
 
@@ -169,10 +168,10 @@ def main():
         table_height_bias=parsed.table_height_bias,
     )
 
-    # Load task class (single-arm multiview from envs.single_arm_tasks_multiview, else envs.{task_name})
-    env_class = get_env_class(parsed.task_name)
+    # Load task class from envs.{task_name}
+    mod = importlib.import_module(f"envs.{parsed.task_name}")
+    env_class = getattr(mod, parsed.task_name)
     env = env_class()
-    # 部分任务会显式传 table_xy_bias（如 put_bottles_dustbin_single），若 args 里也有会报 multiple values
     args_for_setup = {k: v for k, v in args.items() if k not in ("table_xy_bias", "table_height_bias")}
     env.setup_demo(**args_for_setup)
 

@@ -33,6 +33,7 @@ sys.path.append("./")
 
 import argparse
 import copy
+import importlib
 import json
 import os
 import random
@@ -41,7 +42,6 @@ import torch.multiprocessing as mp
 import yaml
 
 from envs._GLOBAL_CONFIGS import CONFIGS_PATH
-from envs.task_loader import get_env_class
 from script.collect_data import get_embodiment_config, run
 
 
@@ -57,7 +57,8 @@ def _worker(task_name: str, args: dict):
     sys.path.append("./")
 
     try:
-        env_class = get_env_class(task_name)
+        mod = importlib.import_module(f"envs.{task_name}")
+        env_class = getattr(mod, task_name)
         task_env = env_class()
     except (ModuleNotFoundError, AttributeError) as e:
         raise SystemExit(f"No such task: {task_name} ({e})")

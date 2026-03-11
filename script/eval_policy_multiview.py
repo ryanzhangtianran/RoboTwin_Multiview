@@ -20,6 +20,7 @@ import sys
 sys.path.append("./")
 
 import argparse
+import importlib
 import json
 import os
 import random
@@ -28,7 +29,6 @@ import torch.multiprocessing as mp
 import yaml
 
 from envs._GLOBAL_CONFIGS import CONFIGS_PATH
-from envs.task_loader import get_env_class
 
 
 # ---------------------------------------------------------------------------
@@ -155,8 +155,9 @@ def main():
         seed              = parsed.seed,
         episodes_per_view = parsed.episodes_per_view,
     )
-    # Resolve task env from single_arm_tasks_multiview or envs (for multiview eval)
-    base_args["env_class"] = get_env_class(parsed.task_name)
+    # Resolve task env from envs.{task_name}
+    mod = importlib.import_module(f"envs.{parsed.task_name}")
+    base_args["env_class"] = getattr(mod, parsed.task_name)
 
     # ------------------------------------------------------------------
     # Evaluate each viewpoint in a fresh subprocess
