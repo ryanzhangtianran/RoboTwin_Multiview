@@ -75,6 +75,7 @@ class Multiview_Task(gym.Env):
         random_setting = kwags.get("domain_randomization")
         self.random_background = random_setting.get("random_background", False)
         self.cluttered_table = random_setting.get("cluttered_table", False)
+        self.cluttered_numbers = random_setting.get("cluttered_numbers", 10)
         self.clean_background_rate = random_setting.get("clean_background_rate", 1)
         self.random_head_camera_dis = random_setting.get("random_head_camera_dis", 0)
         self.random_table_height = random_setting.get("random_table_height", 0)
@@ -131,7 +132,7 @@ class Multiview_Task(gym.Env):
         self.load_actors()
 
         if self.cluttered_table:
-            self.get_cluttered_table()
+            self.get_cluttered_table(cluttered_numbers=self.cluttered_numbers)
 
         is_stable, unstable_list = self.check_stable()
         if not is_stable:
