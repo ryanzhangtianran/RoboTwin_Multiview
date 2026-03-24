@@ -364,6 +364,7 @@ class Camera:
             res["left_camera"]["rgba"] = _get_rgba(self.left_camera)
         if self.collect_right_wrist_camera:
             res["right_camera"] = {}
+            res["left_camera"]["rgba"] = _get_rgba(self.left_camera)
             res["right_camera"]["rgba"] = _get_rgba(self.right_camera)
 
         for camera, camera_name in zip(self.static_camera_list, self.static_camera_name):
