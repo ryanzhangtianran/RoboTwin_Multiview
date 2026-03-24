@@ -294,16 +294,6 @@ class Multiview_Task(gym.Env):
         else:
             self.wall_texture, self.table_texture = None, "seen/379"
 
-        # self.wall = create_box(
-        #     self.scene,
-        #     sapien.Pose(p=[0, 1, 1.5]),
-        #     half_size=[3, 0.6, 1.5],
-        #     color=(1, 0.9, 0.9),
-        #     name="wall",
-        #     texture_id=self.wall_texture,
-        #     is_static=True,
-        # )
-
         self.table = create_table(
             self.scene,
             sapien.Pose(p=[table_xy_bias[0], table_xy_bias[1], table_height]),
@@ -544,7 +534,7 @@ class Multiview_Task(gym.Env):
             traj_data = pickle.load(f)
         return traj_data
 
-    def merge_pkl_to_hdf5_video(self, episode_suffix=""):
+    def merge_pkl_to_hdf5_video(self, episode_suffix="", save_video: bool = True):
         if not self.save_data:
             return
         cache_path = self.folder_path["cache"]
@@ -553,7 +543,9 @@ class Multiview_Task(gym.Env):
         # print('Merging pkl to hdf5: ', cache_path, ' -> ', target_file_path)
 
         os.makedirs(f"{self.save_dir}/data", exist_ok=True)
-        process_folder_to_hdf5_video(cache_path, target_file_path, target_video_path)
+        process_folder_to_hdf5_video(
+            cache_path, target_file_path, target_video_path, save_video=save_video
+        )
 
     def remove_data_cache(self):
         folder_path = self.folder_path["cache"]

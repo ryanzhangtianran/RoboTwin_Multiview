@@ -15,13 +15,13 @@ Strategy (two phases):
 Directory layout produced:
   data/{task_name}/{task_config}/
     base/              <- seed.txt + _traj_data/ (shared)
-    view_000/          <- episode*.hdf5 + video/ for viewpoint 0
+    view_000/          <- episode*.hdf5; video/*.mp4 only if --save-video
     view_001/
     ...
     view_029/
 
 Usage:
-  python script/collect_multiview.py place_can_basket demo_multiview \\
+  python script/collect_data_multiview.py place_can_basket demo_multiview \\
       --num_views 30 --episodes_per_view 10 \\
       --observer_configs observer_configs.json \\
       --gpu 0
@@ -152,6 +152,14 @@ def main():
                         help="Random seed for viewpoint sampling (default: random, printed for reproducibility)")
     parser.add_argument("--save_all", action="store_true",
                         help="In Phase 1, also save wrist and observer camera videos when a seed run fails")
+    parser.add_argument(
+        "--save-video",
+        action="store_true",
+        help=(
+            "Write auxiliary mp4 files under video/ (observer + wrist). "
+            "Default off: RGB stays in HDF5 only (smaller disk, enough for LeRobot etc.)."
+        ),
+    )
     parsed = parser.parse_args()
 
     # ------------------------------------------------------------------
@@ -190,6 +198,7 @@ def main():
     seed_args["collect_data"] = False      # only plan, don't render/save hdf5
     seed_args["data_type"]["observer_camera"] = False if not parsed.save_all else True  # enable observer when save_all to record video on fail
     seed_args["save_all"] = parsed.save_all
+    seed_args["save_video"] = parsed.save_video
 
     run_in_subprocess(parsed.task_name, seed_args)
 
@@ -214,6 +223,7 @@ def main():
         view_args["collect_data"]             = True
         view_args["observer_camera"]          = cam_cfg
         view_args["data_type"]["observer_camera"] = True    # enable observer camera video
+        view_args["save_video"] = parsed.save_video
 
         run_in_subprocess(parsed.task_name, view_args)
 

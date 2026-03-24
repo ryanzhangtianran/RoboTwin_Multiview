@@ -136,13 +136,18 @@ def run(TASK_ENV, args):
                     seed_list.append(epid)
                     TASK_ENV.save_traj_data(suc_num)
                     if args.get("save_all", False):
-                        TASK_ENV.merge_pkl_to_hdf5_video()
+                        TASK_ENV.merge_pkl_to_hdf5_video(
+                            save_video=args.get("save_video", True),
+                        )
                         TASK_ENV.remove_data_cache()
                     suc_num += 1
                 else:
                     print(f"simulate data episode {suc_num} fail! (seed = {epid})")
                     if args.get("save_all", False):
-                        did_save = TASK_ENV.merge_pkl_to_hdf5_video(episode_suffix=f"_fail_{epid}")
+                        did_save = TASK_ENV.merge_pkl_to_hdf5_video(
+                            episode_suffix=f"_fail_{epid}",
+                            save_video=args.get("save_video", True),
+                        )
                         TASK_ENV.remove_data_cache()
                         if did_save:
                             print(f"\033[93m  [save_all] saved wrist + observer video for failed seed {epid}\033[0m")
@@ -237,7 +242,7 @@ def run(TASK_ENV, args):
                 json.dump(info_db, file, ensure_ascii=False, indent=4)
 
             TASK_ENV.close_env(clear_cache=((episode_idx + 1) % clear_cache_freq == 0))
-            TASK_ENV.merge_pkl_to_hdf5_video()
+            TASK_ENV.merge_pkl_to_hdf5_video(save_video=args.get("save_video", True))
             TASK_ENV.remove_data_cache()
             assert TASK_ENV.check_success(), "Collect Error"
 

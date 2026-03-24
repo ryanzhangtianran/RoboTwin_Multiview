@@ -17,20 +17,27 @@ from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Scene constants — multiview layout (_init_multiview_task_env_)
-#   Robot at (0,0), table center height 0.74
+# Table center at (0,0), robot base pose at (0,-0.70,0,0.707,0,0,0.707)
 # ---------------------------------------------------------------------------
 TABLE_HEIGHT = 0.74
+TABLE_LENGTH_X = 1.20
+TABLE_WIDTH_Y = 0.70
 
 # Sphere shell center (table center height)
 SHELL_CENTER = np.array([0.0, 0.0, 1.0])
 
-# Active arm base XY (fixed at origin in multiview)
-ARM_XY = np.array([0.0, 0.0])
+# Robot base pose from embodiment config (x, y, z, qw, qx, qy, qz)
+ROBOT_BASE_POSE = np.array([0.0, -0.70, 0.0, 0.707, 0.0, 0.0, 0.707])
+ARM_XY = ROBOT_BASE_POSE[:2]
+
+# XY footprint used for top-down base rectangle visualisation
+ROBOT_BASE_LENGTH_X = 0.6
+ROBOT_BASE_WIDTH_Y = 0.7
 
 # Key point near robot base (used for visibility check)
 ROBOT_BASE_KP = np.array([ARM_XY[0], ARM_XY[1], 0.25])
 # Key point at the table workspace (center of table in xy, slightly above table top)
-TABLE_KP = np.array([0.0, 0.5, 0.82])
+TABLE_KP = np.array([0.0, 0.3, 0.8])
 
 # Camera image size and FOV (matching default observer camera)
 IMG_W, IMG_H = 320, 240
@@ -39,23 +46,15 @@ FOVY_DEG = 93.0
 # ---------------------------------------------------------------------------
 # Spherical shell: camera positions on shell around (0, 0, 0.74)
 # ---------------------------------------------------------------------------
-SHELL_RADIUS_MIN = 0.5   # m
-SHELL_RADIUS_MAX = 0.8   # m
-AZIMUTH_HALF_DEG = 75.0
-CAM_Y_MIN = 0.1
-CAM_Z_MIN = 0.9
-CAM_Z_MAX = 1.4
+SHELL_RADIUS_MIN = 0.3   # m
+SHELL_RADIUS_MAX = 0.7   # m
+AZIMUTH_HALF_DEG = 90.0
+CAM_Y_MIN = 0.15
+CAM_Z_MIN = 0.90
+CAM_Z_MAX = 1.44
 
 # How many degrees inside the FOV boundary each key point must fall
 VISIBILITY_MARGIN_DEG = 8.0
-
-# Regions where the camera must NOT be placed (inside robot/table body)
-# Multiview: table y in [-0.1, 1.1]; robot at (0,0)
-FORBIDDEN_ZONES = [
-    (-0.6, 0.6, -0.1, 1.1, 0.0, TABLE_HEIGHT),   # inside table
-    (-0.35, 0.35, -0.4, 0.3, 0.0, 1.4),          # inside robot body at (0,0)
-]
-
 
 def _look_at(cam_pos: np.ndarray, target: np.ndarray):
     """
@@ -90,14 +89,6 @@ def _angle_from_axis(cam_pos: np.ndarray, forward: np.ndarray,
     to_pt = to_pt / d
     cos_a = np.clip(np.dot(forward, to_pt), -1.0, 1.0)
     return np.arccos(cos_a)
-
-
-def _in_forbidden_zone(pos: np.ndarray) -> bool:
-    x, y, z = pos
-    for (x0, x1, y0, y1, z0, z1) in FORBIDDEN_ZONES:
-        if x0 <= x <= x1 and y0 <= y <= y1 and z0 <= z <= z1:
-            return True
-    return False
 
 
 def generate_configs(n: int, seed: int = 42) -> list:
@@ -148,9 +139,6 @@ def generate_configs(n: int, seed: int = 42) -> list:
             continue
         if cam_pos[2] <= CAM_Z_MIN or cam_pos[2] > CAM_Z_MAX:
             continue
-        if _in_forbidden_zone(cam_pos):
-            continue
-
         # --- Compute look-at with small random jitter on the target ---
         jitter = rng.normal(0, 0.06, size=3)
         target = look_at_base + jitter
@@ -200,8 +188,7 @@ def generate_configs(n: int, seed: int = 42) -> list:
 def visualize_topdown(configs: list, out_path: str = "observer_configs_preview.png"):
     try:
         import matplotlib.pyplot as plt
-        import matplotlib.patches as mpatches
-        from matplotlib.patches import FancyArrowPatch, Arc, Wedge, Rectangle
+        from matplotlib.patches import Wedge, Rectangle
     except ImportError:
         print("matplotlib not available, skipping visualisation.")
         return
@@ -211,11 +198,17 @@ def visualize_topdown(configs: list, out_path: str = "observer_configs_preview.p
     fig, ax = plt.subplots(figsize=(12, 14))
     ax.set_aspect("equal")
 
-    # ---------- table footprint (multiview: y in [-0.1, 1.1], width=1.2) ----------
+    # ---------- table rectangle ----------
     table_rect = Rectangle(
-        (-0.6, -0.1), 1.2, 1.2,
-        linewidth=2, edgecolor="#8B6914", facecolor="#F5DEB3", alpha=0.5,
-        label="Table", zorder=1,
+        (-TABLE_LENGTH_X / 2.0, -TABLE_WIDTH_Y / 2.0),
+        TABLE_LENGTH_X,
+        TABLE_WIDTH_Y,
+        linewidth=2,
+        edgecolor="#8B6914",
+        facecolor="#F5DEB3",
+        alpha=0.45,
+        label="Table",
+        zorder=1,
     )
     ax.add_patch(table_rect)
 
@@ -258,22 +251,22 @@ def visualize_topdown(configs: list, out_path: str = "observer_configs_preview.p
             f"Shell R:{SHELL_RADIUS_MIN}-{SHELL_RADIUS_MAX}m\n±{AZIMUTH_HALF_DEG:.0f}° (y>{CAM_Y_MIN}, {CAM_Z_MIN}<z<={CAM_Z_MAX})",
             ha="center", va="bottom", fontsize=9, color="darkorange")
 
-    # ---------- robot arm (multiview: at origin) ----------
-    ax.scatter(*ARM_XY, s=200, c="red", marker="^", zorder=6, label="Arm base")
-    ax.annotate("Arm (0,0)", ARM_XY, textcoords="offset points",
+    # ---------- robot base rectangle ----------
+    base_rect = Rectangle(
+        (ARM_XY[0] - ROBOT_BASE_LENGTH_X / 2.0, ARM_XY[1] - ROBOT_BASE_WIDTH_Y / 2.0),
+        ROBOT_BASE_LENGTH_X,
+        ROBOT_BASE_WIDTH_Y,
+        linewidth=2,
+        edgecolor="#8B0000",
+        facecolor="#FF6B6B",
+        alpha=0.30,
+        label="Robot base",
+        zorder=5,
+    )
+    ax.add_patch(base_rect)
+    ax.scatter(*ARM_XY, s=80, c="red", marker="o", zorder=6)
+    ax.annotate("Arm base (0, -0.65)", ARM_XY, textcoords="offset points",
                 xytext=(8, 6), fontsize=9, color="red")
-
-    ax.annotate("", xy=(ARM_XY[0], ARM_XY[1] + 0.5),
-                xytext=(ARM_XY[0], ARM_XY[1]),
-                arrowprops=dict(arrowstyle="->", color="red", lw=1.5))
-    ax.text(ARM_XY[0] + 0.05, ARM_XY[1] + 0.28, "reach", fontsize=8, color="red")
-
-    # ---------- key points ----------
-    ax.scatter(TABLE_KP[0], TABLE_KP[1], s=160, c="limegreen",
-               marker="*", zorder=6, label="TABLE_KP")
-    ax.annotate(f"TABLE_KP\n({TABLE_KP[0]:.2f},{TABLE_KP[1]:.2f})",
-                TABLE_KP[:2], textcoords="offset points",
-                xytext=(6, 4), fontsize=8, color="darkgreen")
 
     # ---------- axes & decorations ----------
     ax.set_xlabel("X (m)", fontsize=11)
