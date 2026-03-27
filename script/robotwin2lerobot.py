@@ -194,7 +194,7 @@ def convert(
         image_writer_threads=image_writer_threads,
     )
 
-    for ep_path in tqdm.tqdm(pairs, desc="episodes"):
+    for _view_name, ep_path in tqdm.tqdm(pairs, desc="episodes"):
         with h5py.File(ep_path, "r") as ep:
             state, action = _state_action_from_h5(ep)
             imgs: dict[str, np.ndarray] = {}

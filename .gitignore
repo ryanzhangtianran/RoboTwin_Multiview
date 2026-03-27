@@ -33,3 +33,6 @@ envs/curobo/*
 observer_configs.json
 observer_configs_preview.png
 visualizations/
+
+# claude helper
+CLAUDE.md
